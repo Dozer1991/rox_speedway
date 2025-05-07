@@ -27,7 +27,7 @@
 ### Notes
 - Some of the code is original, most has been replaced/rewritten by myself
 - Config is not fully complete it is a WIP
-- Props (track barriers, obstacles) are only partially placed for "short" % "drift" tracks
+- Props (track barriers, obstacles) are only partially placed for "short" & "drift" tracks
 - You can customize track layout in `config.lua`
 - You can also customize the checkpoints in `config.lua`
 - The leaderboard should not be enabled if you do not have the prop from below.

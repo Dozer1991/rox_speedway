@@ -6,7 +6,7 @@ description 'alternate version of max_rox_speedway edited by DrCannabis'
 
 shared_scripts {
 	'@ox_lib/init.lua',
-    '@qb-core/shared/locale.lua',      -- for QBCore locale support (optional)
+    '@qb-core/shared/locale.lua',
 }
 
 client_scripts {
