@@ -1,8 +1,8 @@
 fx_version 'cerulean'
 game 'gta5'
 
-author 'Koala'
-description 'piste de cource pour roxwood'
+author 'Original Author Koala'
+description 'alternate version of max_rox_speedway edited by DrCannabis'
 
 shared_scripts {
 	'@ox_lib/init.lua',
