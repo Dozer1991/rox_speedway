@@ -132,6 +132,15 @@ CreateThread(function()
         },
         distance = 2.5
     })
+
+    local blip = AddBlipForCoord(cfg.coords.x, cfg.coords.y, cfg.coords.z)
+    SetBlipSprite(blip, 315)             -- 315 = land race flag icon
+    SetBlipDisplay(blip, 4)             -- show on main map & minimap
+    SetBlipScale(blip, 0.8)             -- a bit smaller
+    SetBlipAsShortRange(blip, false)     -- always show on minimap
+    BeginTextCommandSetBlipName("STRING")
+    AddTextComponentString("Roxwood Speedway")
+    EndTextCommandSetBlipName(blip)
 end)
 
 --------------------------------------------------------------------------------
