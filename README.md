@@ -1,6 +1,5 @@
-# 🏁 ROX_SPEEDWAY - Custom Race Lobby System originally based on
-# 🏁 KOA_ROX_SPEEDWAY - Custom Race Lobby System (Original Resource Link Below)
-# https://github.com/MaxSuperTech/max_rox_speedway
+# 🏁 ROX_SPEEDWAY – Custom Race Lobby System  
+_Originally based on [KOA_ROX_SPEEDWAY by MaxSuperTech](https://github.com/MaxSuperTech/max_rox_speedway)_
 
 🔥 Multiplayer race system with dynamic lobbies, countdown, laps & vehicle selection!
 
@@ -28,7 +27,7 @@
 - **Optional “Raceway Leaderboard Display”** integration by Glitchdetector  
 
 ### Notes
-- Some code is original, most has been replaced/rewritten by the author  
+- Some code is original; significant portions have been replaced or rewritten by DrCannabis  
 - Config is still a WIP  
 - Props (track barriers, obstacles) are only partially placed for "Short_Track" & "Drift_Track"  
 - Customize track layout and **checkpoints** in `config.lua`  
@@ -64,7 +63,7 @@
 - Intégration optionnelle de **“Raceway Leaderboard Display”** par Glitchdetector  
 
 ### Remarques
-- Une partie du code est originale, le reste a été réécrit  
+- Une partie du code est originale ; d’importantes portions ont été remplacées ou réécrites par DrCannabis  
 - Config en cours de développement  
 - Props pour barrières & obstacles partiellement placés pour "Short_Track" & "Drift_Track"  
 - Personnalisez circuit et **checkpoints** dans `config.lua`  
@@ -100,7 +99,7 @@
 - Optionale **“Raceway Leaderboard Display”** Integration von Glitchdetector  
 
 ### Hinweise
-- Teile des Codes sind original, der Großteil wurde neu geschrieben  
+- Ein Teil des Codes ist original; wesentliche Teile wurden von DrCannabis ersetzt oder neu geschrieben  
 - Konfiguration noch in Arbeit  
 - Props (Streckenbarrieren, Hindernisse) nur für „Short_Track“ & „Drift_Track“ teilweise platziert  
 - Passen Sie Streckenlayout und **Checkpoints** in `config.lua` an  
