@@ -1,8 +1,8 @@
 fx_version 'cerulean'
 game 'gta5'
 
-author 'Original Author Koala'
-description 'alternate version of max_rox_speedway edited by DrCannabis'
+author 'DrCannabis'
+description '(Original Author Koala) Alternate version of max_rox_speedway edited by DrCannabis'
 
 shared_scripts {
 	'@ox_lib/init.lua',
@@ -15,14 +15,13 @@ client_scripts {
 
 server_scripts {
 	'@oxmysql/lib/MySQL.lua',
-	'server/s_main.lua',
-    'server/s_function.lua'
+	'server/s_main.lua'
    
 }
 
 files {
     'config/config.lua',
-    'locales/*.json'
+    'locales/*.lua'
 }
 
 dependencies {
