@@ -417,6 +417,13 @@ RegisterNetEvent("speedway:prepareStart", function(data)
         local veh = NetworkGetEntityFromNetworkId(data.netId)
         while not DoesEntityExist(veh) do Wait(0); veh = NetworkGetEntityFromNetworkId(data.netId) end
 
+        -- **IMMEDIATE FUEL RESET**
+        SetVehicleFuelLevel(veh, 100.0)
+        if GetResourceState("LegacyFuel")    == "started" then exports["LegacyFuel"]:SetFuel(veh,100) end
+        if GetResourceState("cdn-fuel")      == "started" then exports["cdn-fuel"]:SetFuel(veh,100) end
+        if GetResourceState("okokGasStation")== "started" then exports["okokGasStation"]:SetFuel(veh,100) end
+        if GetResourceState("ox_fuel")       == "started" then Entity(veh).state.fuel = 100.0 end
+
         SetEntityAsMissionEntity(veh, true, true)
         FreezeEntityPosition(veh, true)
         TaskWarpPedIntoVehicle(PlayerPedId(), veh, -1)
@@ -425,6 +432,22 @@ RegisterNetEvent("speedway:prepareStart", function(data)
         for i = 3, 1, -1 do ShowCountdownText(tostring(i), 1000) end
         ShowCountdownText("GO", 1000)
         FreezeEntityPosition(veh, false)
+
+        -- repeatedly slam the tank back to 100% for the first 5 seconds
+        CreateThread(function()
+            local tries = 0
+            while tries < 5 do
+                if DoesEntityExist(veh) then
+                    SetVehicleFuelLevel(veh, 100.0)
+                    if GetResourceState("LegacyFuel")    == "started" then exports["LegacyFuel"]:SetFuel(veh,100) end
+                    if GetResourceState("cdn-fuel")      == "started" then exports["cdn-fuel"]:SetFuel(veh,100) end
+                    if GetResourceState("okokGasStation")== "started" then exports["okokGasStation"]:SetFuel(veh,100) end
+                    if GetResourceState("ox_fuel")       == "started" then Entity(veh).state.fuel = 100.0 end
+                end
+                tries = tries + 1
+                Wait(1000)
+            end
+        end)
 
         CreateThread(function()
             while inRace do
