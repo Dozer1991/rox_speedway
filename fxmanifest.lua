@@ -16,7 +16,7 @@ client_scripts {
   'client/c_fuel.lua',       -- <-- matches your filename
   'client/c_function.lua',
   'client/c_main.lua',
-  'client/c_pit.lua',
+  --'client/c_pit.lua', <-- working pitcrew coming in next update
 }
 
 server_scripts {
