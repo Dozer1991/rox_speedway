@@ -1,8 +1,17 @@
--- s_main.lua
+-- server/s_main.lua
 
-local Config    = require("config.config")
-local QBCore    = exports['qb-core']:GetCoreObject()
-lib.locale()  -- sets up your `locale(...)` helper on the server
+local Config = require("config.config")
+local QBCore = exports['qb-core']:GetCoreObject()
+
+-- LOCALE HELPER (uses your Lua locale modules)
+local function locale(key, ...)
+    local t = Config.Locales[Config.Locale] or {}
+    local str = t[key] or key
+    local args = { ... }
+    return (str:gsub("{(%d+)}", function(n)
+        return tostring(args[tonumber(n)] or "")
+    end))
+end
 
 --------------------------------------------------------------------------------
 -- re-add table helpers from s_function.lua
@@ -257,40 +266,16 @@ RegisterNetEvent("speedway:selectedVehicle", function(lobbyName, model)
       TriggerClientEvent("vehiclekeys:client:SetOwner", pid, plate)
       TriggerClientEvent("speedway:prepareStart", pid, {
         track = lob.track,
-        netId = NetworkGetNetworkIdFromEntity(veh)
+        netId = NetworkGetNetworkIdFromEntity(veh),
+        laps   = lob.laps
       })
+      -- tell the leaderboard plugin our exact grid order:
+      TriggerEvent(
+        "speedway-leaderboard:server:setGridOrder",
+        lobbyName,
+        lob.players
+      )
     end
-  end
-end)
-
---------------------------------------------------------------------------------
--- LIVE PROGRESS UPDATES
---------------------------------------------------------------------------------
-RegisterNetEvent("speedway:updateProgress", function(lobbyName, dist)
-  local src = source
-  local lob = lobbies[lobbyName]
-  if not lob or not lob.isStarted then return end
-
-  lob.progress[src] = dist
-
-  local board = {}
-  for _, pid in ipairs(lob.players) do
-    table.insert(board, {
-      id   = pid,
-      lap  = lob.lapProgress[pid] or 0,
-      dist = lob.progress[pid]    or 0
-    })
-  end
-
-  table.sort(board, function(a, b)
-    if a.lap ~= b.lap then
-      return a.lap > b.lap
-    end
-    return a.dist > b.dist
-  end)
-
-  for rank, e in ipairs(board) do
-    TriggerClientEvent("speedway:updatePosition", e.id, rank, #board)
   end
 end)
 

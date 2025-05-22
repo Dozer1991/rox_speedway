@@ -1,5 +1,6 @@
 Config = Config or {}
 
+-- Locale settings
 Config.Locale = "en"  -- change to "fr" or "de" as needed
 Config.Locales = {
   en = require("locales.en"),
@@ -7,27 +8,43 @@ Config.Locales = {
   de = require("locales.de"),
 }
 
-Config.debug = false            -- Set to true to visualize zones
+-- Debugging
+Config.debug = true            -- Set to true to visualize zones
 
---- Choose your notification provider: "ox_lib", "okokNotify" or "rtx_notify"
+-- Notification provider: "ox_lib", "okokNotify" or "rtx_notify"
 Config.NotificationProvider = "okokNotify"
 
---- Optional if you have Raceway Leaderboard Display by Glitchdetector
+-- Optional Raceway Leaderboard Display by Glitchdetector
 Config.Leaderboard = {
-    enabled = false,
+    enabled = true,
 }
 
 --- START / FINISH LINE POLYGON (used for ROSZ detection if you ever need it)
 Config.StartLinePoints = {
-  vector3(-2762.315, 8079.99, 42.87),
+    vector3(-2761.50, 8084.30, 42.88),
+}
+
+--- ADJUSTABLE FINISH‐LINE SPHERE (separate from checkpoints)
+Config.FinishLine = {
+    boxCorners = {
+        vector3( -2762.8942871094, 8085.2436523438, 30.0 ),  -- corner A
+        vector3( -2758.9077148438, 8084.9848632813, 30.0 ),  -- corner B
+        vector3( -2759.5432128906, 8074.0034179688, 30.5 ),  -- corner C
+        vector3( -2763.4086914063, 8074.2348632813, 30.5 ),  -- corner D
+    },
+    -- you can keep these around to fall back on if you ever need them:
+    coords = Config.StartLinePoints[1],
+    radius = 15.0
 }
 
 --- TRACK CHECKPOINTS (must drive through these in order)
+--- LEADERBOARD ACCURACY RELIES ON CHECKPOINT ACCURACY
+--- DO NOT CHANGE THESE UNLESS YOU KNOW WHAT YOU ARE DOING ELSE YOU WILL BREAK LEADERBOARD
 Config.Checkpoints = {
     Short_Track = {
-        vector3(-2519.90, 8237.24, 38.46),
-        vector3(-2719.17, 8335.82, 40.43),
-        vector3(-3102.41, 8305.79, 35.85),
+        vector3(-2554.69, 8193.30, 38.24),    
+        vector3(-2719.17, 8335.82, 40.43),    
+        vector3(-3097.36, 8308.31, 36.28),
     },
     Drift_Track = {
         vector3(-2519.90, 8237.24, 38.46),
@@ -36,19 +53,86 @@ Config.Checkpoints = {
     },
     Speed_Track = {
         vector3(-2519.90, 8237.24, 38.46),
-        vector3(350.0, 250.0, 102.0),
-        vector3(400.0, 300.0, 102.0),
     },
     Long_Track = {
         vector3(-2519.90, 8237.24, 38.46),
-        vector3(150.0, 150.0, 102.0),
-        vector3(200.0, 200.0, 102.0),
-        vector3(250.0, 250.0, 102.0),
     },
 }
 
+Config.RankingPoints = {
+    Short_Track = {
+        -- just after race start REQUIRED
+        vector3(-2750.33, 8079.47, 42.82),
+        -- ① Hairpin entry (just after you leave the straight)
+        vector3(-2495.46, 8157.56, 41.97),    
+        -- ② Hairpin apex (middle of the U-turn)
+        vector3(-2476.55, 8231.21, 41.60),    
+        -- ③ Original CP 1 (exit of hairpin)
+        vector3(-2554.69, 8193.30, 38.24),    
+        -- ④ Original CP 2 (top of the next bend)
+        vector3(-2719.17, 8335.82, 40.43),    
+        -- ⑤ Original CP 3 (long left sweep)
+        vector3(-3097.36, 8308.31, 36.28),
+    },
+    Drift_Track = {
+        -- just after race start REQUIRED
+        vector3(-2750.33, 8079.47, 42.82),
+        -- ① Hairpin entry (just after you leave the straight)
+        vector3(-2495.46, 8157.56, 41.97),    
+        -- ② Hairpin apex (middle of the U-turn)
+        vector3(-2476.55, 8231.21, 41.60),    
+        -- ③ Original CP 1 (exit of hairpin)
+        vector3(-2554.69, 8193.30, 38.24),   
+        vector3(-2802.37, 8546.86, 43.96),
+        vector3(-2950.20, 8405.94, 36.45),
+    },
+    Speed_Track = {
+        -- just after race start REQUIRED
+        vector3(-2750.33, 8079.47, 42.82),
+        vector3(-2495.46, 8157.56, 41.97),
+        vector3(-2476.55, 8231.21, 41.60),
+        vector3(-2554.69, 8193.30, 38.24),   
+    },
+    Long_Track = {
+        -- just after race start REQUIRED
+        vector3(-2750.33, 8079.47, 42.82),
+        vector3(-2495.46, 8157.56, 41.97),    
+        vector3(-2476.55, 8231.21, 41.60),
+        vector3(-2554.69, 8193.30, 38.24),   
+    },
+}
+
+--- PIT CREW ZONES
+Config.PitCrewZones = {
+    -- Zone #1
+    {  
+      coords  = vector3(-2865.45, 8113.30, 43.74),   
+      heading = 180.0,    -- NPCs will face south
+      radius  = 6.0  
+    },
+    -- Zone #2
+    {  
+      coords  = vector3(-2840.76, 8109.64, 43.55),   
+      heading = 180.0,    -- NPCs will face south
+      radius  = 6.0  
+    },
+    -- You can add more zones here
+}
+
+-- Pit-crew settings
+Config.PitCrewModel       = 'ig_mechanic_01'  -- ped model for all pit crew
+Config.PitCrewIdleOffsets = {
+    vector3(-2.0,  0.0,  0.0),  -- two idle spots (left/right)
+    vector3( 2.0,  0.0,  0.0),
+}
+Config.PitCrewCrewOffsets = {
+    vector3( 0.0, -2.0,  0.0),  -- refuel spot (rear)
+    vector3( 0.0,  2.0,  0.0),  -- hood spot (front)
+    vector3( 2.0,  0.0,  0.0),  -- jack spot (side)
+}
+
 --- OUT COORDS (where to send you when you finish)
-Config.outCoords = vec4(-2896.1172, 8077.2363, 44.4940, 183.6707)
+Config.outCoords = vector4(-2896.1172, 8077.2363, 44.4940, 183.6707)
 
 --- LOBBY PED
 Config.LobbyPed = {
@@ -62,14 +146,14 @@ Config.TrackProps = {
         {
             prop  = 'sum_prop_ac_tyre_wall_lit_0l1',
             cords = {
-                vec4(-2705.38, 8340.52, 41.36, 338.00),
-                vec4(-2700.06, 8335.04, 41.48, 338.00),
-                vec4(-2694.68, 8328.46, 41.47, 338.00),
-                vec4(-2689.42, 8323.68, 41.47, 338.00),
-                vec4(-2683.45, 8320.36, 41.47, 338.00),
-                vec4(-2679.92, 8315.29, 41.47, 338.00),
-                vec4(-2674.74, 8310.80, 41.47, 338.00),
-                vec4(-2905.52, 8346.46, 36.11,  81.12),
+                vector4(-2705.38, 8340.52, 41.36, 338.00),
+                vector4(-2700.06, 8335.04, 41.48, 338.00),
+                vector4(-2694.68, 8328.46, 41.47, 338.00),
+                vector4(-2689.42, 8323.68, 41.47, 338.00),
+                vector4(-2683.45, 8320.36, 41.47, 338.00),
+                vector4(-2679.92, 8315.29, 41.47, 338.00),
+                vector4(-2674.74, 8310.80, 41.47, 338.00),
+                vector4(-2905.52, 8346.46, 36.11,  81.12),
             }
         }
     },
@@ -155,26 +239,20 @@ Config.TrackProps = {
 
 --- VEHICLE OPTIONS
 Config.RaceVehicles = {
-    { label = "Sultan RS",       model = "sultanrs"    },
-    { label = "Elegy RH8",       model = "elegy"      },
-    { label = "Buffalo",         model = "buffalo"    },
-    { label = "Kuruma",          model = "kuruma"     },
-    { label = "2023WRCI20",      model = "2023WRCI20" },
-    { label = "WRC2006",         model = "WRC2006"    },
-    { label = "YarisWRC",        model = "YarisWRC"   },
+    { label = "Sultan RS",  model = "sultanrs"    },
+    { label = "Elegy RH8",  model = "elegy"      },
+    { label = "Buffalo",    model = "buffalo"    },
+    { label = "Kuruma",     model = "kuruma"     },
+    { label = "2023WRCI20", model = "2023WRCI20" },
+    { label = "WRC2006",    model = "WRC2006"    },
+    { label = "YarisWRC",   model = "YarisWRC"   },
 }
 
 --- GRID SPAWN POINTS
 Config.GridSpawnPoints = {
-    vec4(-2762.9260, 8076.5244, 42.6784, 264.5850),
-    vec4(-2764.9563, 8079.9731, 42.6893, 266.6010),
-    vec4(-2767.7869, 8083.4434, 42.7054, 266.2213),
-}
-
---- ADJUSTABLE FINISH‐LINE SPHERE (separate from checkpoints)
-Config.FinishLine = {
-    coords = Config.StartLinePoints[1],  -- uses the first point of your StartLinePoints
-    radius = 15.0,
+    vector4(-2762.9260, 8076.5244, 42.6784, 264.5850),
+    vector4(-2764.9563, 8079.9731, 42.6893, 266.6010),
+    vector4(-2767.7869, 8083.4434, 42.7054, 266.2213),
 }
 
 return Config
