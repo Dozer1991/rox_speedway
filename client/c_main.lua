@@ -167,8 +167,10 @@ RegisterNetEvent('speedway:updateLobbyInfo', function(info)
         hasLobby     = true
         currentLobby = info.name
         lobbyOwner   = info.owner
+        totalLaps      = info.laps
     else
         hasLobby, currentLobby, lobbyOwner = false, nil, nil
+        totalLaps      = 0
     end
 end)
 
@@ -272,7 +274,6 @@ RegisterNetEvent("speedway:prepareStart", function(data)
     inRace       = true
     currentTrack = data.track
     currentLap    = 1
-    totalLaps     = data.laps or 1
 
     -- clear old props
     TriggerEvent("speedway:client:destroyprops")
@@ -326,18 +327,20 @@ RegisterNetEvent("speedway:prepareStart", function(data)
     end
 
     -- finish line zone
-    lib.zones.box({
-        name     = "finish_line",
-        coords   = vector3(-2761.9385, 8079.6167, 30.25),  -- center of your 4 corners
-        size     = vector3(4.0, 11.0, 1.0),                -- width, length, height
-        debug    = Config.debug,
-        onEnter  = function()
+    lib.zones.sphere({
+        name   = "finish_line",
+        coords = Config.FinishLine.coords,
+        radius = Config.FinishLine.radius,
+        debug  = Config.debug,
+        onEnter = function()
+            print(("[Speedway][DEBUG] finish_line onEnter; cpIndex=%d/%d"):format(
+                racerCheckpointIndex, #Config.Checkpoints[currentTrack]
+            ))
             if racerCheckpointIndex == #Config.Checkpoints[currentTrack] then
                 racerCheckpointIndex = 0
                 TriggerServerEvent("speedway:lapPassed", currentLobby, GetPlayerServerId(PlayerId()))
             end
-        end,
-        -- onExit = function() end  -- optional
+        end
     })
 
     -- spawn & race
@@ -405,7 +408,7 @@ end)
 -- 13) LAP & FINISH TOASTS
 --------------------------------------------------------------------------------
 RegisterNetEvent("speedway:updateLap", function(cur, tot)
-    currentLap = cur + 1               -- next lap you’re on
+    currentLap = cur + 1
     totalLaps  = tot
     SpeedwayNotify("🏁 Speedway", ("Lap %s/%s"):format(cur, tot), "inform", 3000)
 end)
@@ -487,25 +490,20 @@ CreateThread(function()
     while true do
         Wait(0)
         if inRace then
-            SetTextFont(4)
-            SetTextScale(0.5, 0.5)
-            SetTextCentre(true)
-            SetTextColour(255, 255, 255, 255)
-            SetTextOutline()
+            -- draw lap counter
+            SetTextFont(4); SetTextScale(0.5,0.5); SetTextCentre(true)
+            SetTextColour(255,255,255,255); SetTextOutline()
             BeginTextCommandDisplayText("STRING")
-            AddTextComponentSubstringPlayerName( ("Position %d / %d"):format(myPosition, totalRacers) )
-            -- 0.5 = center X, 0.95 = near bottom Y
+            AddTextComponentSubstringPlayerName(("Lap %d / %d"):format(currentLap, totalLaps))
             EndTextCommandDisplayText(0.5, 0.92)
 
-            -- 2) draw lap just underneath
-            SetTextFont(4)
-            SetTextScale(0.5, 0.5)
-            SetTextCentre(true)
-            SetTextColour(255, 255, 255, 255)
-            SetTextOutline()
+            -- draw position (exactly as before)
+            SetTextFont(4); SetTextScale(0.5,0.5); SetTextCentre(true)
+            SetTextColour(255,255,255,255); SetTextOutline()
             BeginTextCommandDisplayText("STRING")
-            AddTextComponentSubstringPlayerName( ("Lap %d / %d"):format(currentLap, totalLaps) )
+            AddTextComponentSubstringPlayerName(("Position %d / %d"):format(myPosition, totalRacers))
             EndTextCommandDisplayText(0.5, 0.95)
         end
     end
 end)
+
