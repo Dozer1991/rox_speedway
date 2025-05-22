@@ -9,10 +9,10 @@ Config.Locales = {
 }
 
 -- Debugging
-Config.debug = true            -- Set to true to visualize zones
+Config.debug = false            -- Set to true to visualize zones
 
 -- Notification provider: "ox_lib", "okokNotify" or "rtx_notify"
-Config.NotificationProvider = "okokNotify"
+Config.NotificationProvider = "ox_lib"
 
 -- Optional Raceway Leaderboard Display by Glitchdetector
 Config.Leaderboard = {
