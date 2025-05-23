@@ -351,8 +351,8 @@ RegisterNetEvent("speedway:prepareStart", function(data)
 
         SetEntityAsMissionEntity(veh, true, true)
         TaskWarpPedIntoVehicle(PlayerPedId(), veh, -1)
-        FreezeEntityPosition(veh, true)
         repeat Wait(0) until IsPedInAnyVehicle(PlayerPedId(), false)
+        FreezeEntityPosition(veh, true)
 
         for i = 3, 1, -1 do ShowCountdownText(tostring(i), 1000) end
         ShowCountdownText("GO", 1000)
