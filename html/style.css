@@ -1,0 +1,23 @@
+#race-hud {
+  position: absolute;
+  top: 100px;
+  right: 50px;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 10px 15px;
+  border-radius: 12px;
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 16px;
+  color: #ffffff;
+  z-index: 1000;
+  min-width: 160px;
+  box-shadow: 0 0 12px rgba(0,0,0,0.5);
+}
+
+.race-info {
+  margin: 4px 0;
+}
+
+.race-info .label {
+  color: #ccc;
+  margin-right: 5px;
+}

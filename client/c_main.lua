@@ -1,5 +1,5 @@
 -- client/c_main.lua
-
+local coreVehicles = exports.qbx_core:GetVehiclesByName()
 --------------------------------------------------------------------------------
 -- 1) CONFIG & LOCALE
 --------------------------------------------------------------------------------
@@ -12,11 +12,6 @@ local function loc(key, ...)
         return tostring(args[tonumber(n)] or "")
     end))
 end
-
---------------------------------------------------------------------------------
--- 2) PULL IN QBCORE
---------------------------------------------------------------------------------
-local QBCore = exports['qb-core']:GetCoreObject()
 
 --------------------------------------------------------------------------------
 -- 3) FUEL MODULE (moved to client/c_fuel.lua)
@@ -140,14 +135,116 @@ CreateThread(function()
     SetEntityInvincible(ped, true)
     SetBlockingOfNonTemporaryEvents(ped, true)
 
-    exports['qb-target']:AddTargetEntity(ped, {
-        options = {
-            { event = 'speedway:client:createLobby', icon = 'fa-solid fa-flag-checkered', label = loc("create_lobby"), canInteract = function() return not hasLobby end },
-            { event = 'speedway:client:joinLobby',   icon = 'fa-solid fa-user-plus',         label = loc("join_lobby"),   canInteract = function() return hasLobby and not currentLobby end },
-            { event = 'speedway:client:startRace',   icon = 'fa-solid fa-flag-checkered',   label = loc("start_race"),    canInteract = function() return currentLobby and lobbyOwner == GetPlayerServerId(PlayerId()) end },
-            { event = 'speedway:client:leaveLobby',  icon = 'fa-solid fa-sign-out-alt',     label = loc("leave_lobby"),   canInteract = function() return currentLobby end },
+    exports.ox_target:addLocalEntity(ped, {
+        {
+            name = 'create_lobby',
+            label = loc('create_lobby'),
+            icon = 'fa-solid fa-flag-checkered',
+            onSelect = function()
+                local infolobby = lib.inputDialog(loc("create_lobby"), {
+                    {
+                        type = "number",
+                        label = loc("number_of_laps"),
+                        min = 1,
+                        max = 10,
+                        default = 3,
+                        required = true
+                    },
+                    {
+                        type = "select",
+                        label = loc("select_track"),
+                        options = {
+                            { label = loc('Short_Track'), value = "Short_Track" },
+                            { label = loc('Drift_Track'), value = "Drift_Track" },
+                            { label = loc('Speed_Track'), value = "Speed_Track" },
+                            { label = loc('Long_Track'),  value = "Long_Track" }
+                        },
+                        required = true,
+                        default = "Short_Track"
+                    }
+                })
+            
+                if infolobby and infolobby[1] and infolobby[2] then
+                    local trackType = infolobby[2]
+                    local lapCount = tonumber(infolobby[1])
+                    local playerName = GetPlayerName(PlayerId())
+                    local lobbyName = playerName .. "_" .. math.random(1000, 9999)
+            
+                    TriggerServerEvent("speedway:createLobby", lobbyName, trackType, lapCount)
+                else
+                    lib.notify({
+                        title = "Speedway",
+                        description = loc("error_input"),
+                        type = "error"
+                    })
+                end
+            end,
+            canInteract = function()
+                return currentLobby == nil
+            end
+            
         },
-        distance = 2.5
+        {
+            name = 'join_lobby',
+            label = loc('join_lobby'),
+            icon = 'fa-solid fa-users',
+            onSelect = function()
+                lib.callback("speedway:getLobbies", false, function(lobbies)
+                    if #lobbies == 0 then
+                        lib.notify({
+                            title = "Speedway",
+                            description = loc("no_lobby"),
+                            type = "error"
+                        })
+                        return
+                    end
+        
+                    local selected = lib.inputDialog(loc("join_lobby"), {
+                        {
+                            type = "select",
+                            label = loc("select_lobby"),
+                            options = lobbies,
+                            required = true
+                        }
+                    })
+        
+                    if selected and selected[1] then
+                        TriggerServerEvent("speedway:joinLobby", selected[1])
+                    end
+                end)
+            end,
+            canInteract = function()
+                return hasLobby and not currentLobby
+            end
+        },
+        {
+            label = "Starta lopp",
+            icon = "fa-solid fa-flag-checkered",
+            onSelect = function()
+                if not currentLobby then return end
+                TriggerEvent('speedway:client:startRace')
+            end,
+            canInteract = function()
+                return currentLobby and GetPlayerServerId(PlayerId()) == lobbyOwner
+            end
+        },
+        {
+            name = "leave_lobby",
+            label = "Lämna lobbyn",
+            icon = "fa-solid fa-door-open",
+            onSelect = function()
+                TriggerServerEvent("speedway:leaveLobby")
+                currentLobby = nil
+                lib.notify({
+                    title = "Speedway",
+                    description = "Du lämnade lobbyn.",
+                    type = "inform"
+                })
+            end,
+            canInteract = function()
+                return currentLobby ~= nil
+            end
+        }        
     })
 
     local blip = AddBlipForCoord(cfg.coords.x, cfg.coords.y, cfg.coords.z)
@@ -177,53 +274,40 @@ end)
 --------------------------------------------------------------------------------
 -- 10) CREATE / JOIN / START / LEAVE
 --------------------------------------------------------------------------------
-RegisterNetEvent('speedway:client:createLobby', function()
-    local dialog = exports['qb-input']:ShowInput({
-        header     = loc("create_lobby"),
-        submitText = loc("submit"),
-        inputs     = {
-            { text = loc("number_of_laps"), name = "lapCount", type = "number", isRequired = true, min = 1, max = 10, default = 3 },
-            { text = loc("select_track"),   name = "trackType", type = "select", isRequired = true, default = "Short_Track",
-              options = {
-                  { value = "Short_Track", text = loc("Short_Track") },
-                  { value = "Drift_Track",  text = loc("Drift_Track")  },
-                  { value = "Speed_Track",  text = loc("Speed_Track")  },
-                  { value = "Long_Track",   text = loc("Long_Track")   },
-              },
-            },
-        },
-    })
-    if not dialog then return end
-
-    local lapCount  = tonumber(dialog.lapCount) or 1
-    local trackType = dialog.trackType
-    local lobbyName = GetPlayerName(PlayerId()) .. "_" .. math.random(1000,9999)
-    TriggerServerEvent("speedway:createLobby", lobbyName, trackType, lapCount)
-end)
-
 RegisterNetEvent('speedway:client:joinLobby', function()
     local lobbies = lib.callback.await("speedway:getLobbies", true)
     if not lobbies or #lobbies == 0 then
-        SpeedwayNotify(loc("no_lobbies"), "", "error")
+        SpeedwayNotify(loc("no_lobby"), "", "error")
         return
     end
+
     local opts = {}
-    for _, e in ipairs(lobbies) do table.insert(opts, { value = e.value, text = e.label }) end
-    local dialog = exports['qb-input']:ShowInput({
-        header     = loc("join_lobby"),
-        submitText = loc("submit"),
-        inputs     = {{ text = loc("select_lobby"), name = "selectedLobby", type = "select", isRequired = true, options = opts }},
+    for _, e in ipairs(lobbies) do
+        table.insert(opts, { value = e.value, label = e.label })
+    end
+
+    local input = lib.inputDialog(loc("join_lobby"), {
+        {
+            type = 'select',
+            label = loc("select_lobby"),
+            name = 'selectedLobby',
+            required = true,
+            options = opts
+        }
     })
-    if dialog and dialog.selectedLobby then
-        TriggerServerEvent("speedway:joinLobby", dialog.selectedLobby)
+
+    if input and input.selectedLobby then
+        TriggerServerEvent("speedway:joinLobby", input.selectedLobby)
     end
 end)
+
 
 RegisterNetEvent('speedway:client:startRace', function()
     if lobbyOwner ~= GetPlayerServerId(PlayerId()) then
         SpeedwayNotify("", loc("not_authorized_to_start_race"), "error")
         return
     end
+
     local players = lib.callback.await("speedway:getLobbyPlayers", false, currentLobby)
     local names   = {}
     for _, sid in ipairs(players) do
@@ -231,9 +315,13 @@ RegisterNetEvent('speedway:client:startRace', function()
         local pname = pid and GetPlayerName(pid) or ("ID"..sid)
         table.insert(names, pname)
     end
+
     SpeedwayNotify(loc("lobby_preview"), table.concat(names, "\n"), "inform", 10000)
+
+    -- 🟢 Starta race
     TriggerServerEvent("speedway:startRace", currentLobby)
 end)
+
 
 RegisterNetEvent('speedway:client:leaveLobby', function()
     if not hasLobby then
@@ -247,25 +335,85 @@ end)
 -- 11) VEHICLE SELECTION
 --------------------------------------------------------------------------------
 RegisterNetEvent("speedway:chooseVehicle", function(lobbyName)
-    local opts = {}
+    local coreVehicles = exports.qbx_core:GetVehiclesByName()
+    local sortedVehicles = {}
+
     for _, v in ipairs(Config.RaceVehicles) do
-        table.insert(opts, { value = v.model, text = v.label })
+        local model = v.model
+        local label = v.label or (coreVehicles[model] and coreVehicles[model].name) or model
+
+        if model and label then
+            table.insert(sortedVehicles, {
+                model = model,
+                label = label
+            })
+        else
+            print("[ERROR] Missing model or label in RaceVehicles config or core:", json.encode(v))
+        end
     end
-    local dialog = exports['qb-input']:ShowInput({
-        header     = loc("choose_vehicle_title"),
-        submitText = loc("submit"),
-        inputs     = {{
-            text       = loc("choose_vehicle_label"),
-            name       = "selectedModel",
-            type       = "select",
-            isRequired = true,
-            options    = opts,
-            default    = opts[1].value
-        }},
+
+    -- Sortera fordonen alfabetiskt efter label
+    table.sort(sortedVehicles, function(a, b)
+        return a.label:lower() < b.label:lower()
+    end)
+
+    -- Generera val från sorterad lista
+    local opts = {}
+    for _, v in ipairs(sortedVehicles) do
+        table.insert(opts, { value = v.model, label = v.label })
+    end
+
+    if #opts == 0 then
+        lib.notify({
+            title = 'Speedway',
+            description = 'Inga fordon tillgängliga.',
+            type = 'error'
+        })
+        return
+    end
+
+    local input = lib.inputDialog("Välj fordon", {
+        {
+            type = 'select',
+            label = "Fordon",
+            name = 'selectedModel',
+            required = true,
+            options = opts,
+            default = opts[1].value
+        }
     })
-    local sel = dialog and dialog.selectedModel or nil
+    
+    if not input or not (input.selectedModel or input[1]) then
+        lib.notify({
+            title = 'Speedway',
+            description = 'Ingen modell valdes.',
+            type = 'error'
+        })
+        print("[DEBUG] input received, but selectedModel is nil:", json.encode(input))
+        return
+    end
+
+    local sel = input.selectedModel or input[1]
+    print("[DEBUG] Sending selected model to server:", sel)
     TriggerServerEvent("speedway:selectedVehicle", lobbyName, sel)
 end)
+
+
+RegisterNetEvent("speedway:client:teleportToStart", function(coords)
+    DoScreenFadeOut(500)
+    while not IsScreenFadedOut() do Wait(10) end
+
+    local ped = PlayerPedId()
+    SetEntityCoordsNoOffset(ped, coords.x, coords.y, coords.z, false, false, false)
+    SetEntityHeading(ped, coords.w)
+
+    -- Vänta lite innan fade in (så positionen verkligen sätts)
+    Wait(250)
+
+    DoScreenFadeIn(500)
+end)
+
+
 
 --------------------------------------------------------------------------------
 -- 12) PREPARE & START THE RACE (SPAWN + COUNTDOWN)
@@ -274,6 +422,13 @@ RegisterNetEvent("speedway:prepareStart", function(data)
     inRace       = true
     currentTrack = data.track
     currentLap    = 1
+
+    local veh = NetworkGetEntityFromNetworkId(data.netId)
+
+    while not DoesEntityExist(veh) do Wait(0) end
+
+    SetVehicleNumberPlateText(veh, data.plate)
+    TriggerEvent("vehiclekeys:client:SetOwner", data.plate)
 
     -- clear old props
     TriggerEvent("speedway:client:destroyprops")
@@ -296,6 +451,17 @@ RegisterNetEvent("speedway:prepareStart", function(data)
     racerCheckpointIndex = 0
     racerRankpointIndex  = 0
 
+    SendNUIMessage({
+        action = "updateRaceHUD", -- om du har ett toggle
+        cp = racerCheckpointIndex,
+        totalCp = #Config.Checkpoints[currentTrack],
+        lap = currentLap,
+        totalLaps = totalLaps,
+        position = myPosition or 1,
+        total = totalRacers or 1
+    })
+
+
     -- 1) LAP‐CHECKPOINT SPHERES
     for idx, coord in ipairs(Config.Checkpoints[currentTrack] or {}) do
         local cpRadius = (idx == 2) and 25.0 or 15.0  -- apex larger, adjust to taste
@@ -306,6 +472,15 @@ RegisterNetEvent("speedway:prepareStart", function(data)
             onEnter = function()
                 if idx == racerCheckpointIndex + 1 then
                     racerCheckpointIndex = idx
+                    print("[Speedway][DEBUG] Checkpoints passed "..racerCheckpointIndex.." / "..#Config.Checkpoints[currentTrack])
+                    SendNUIMessage({
+                    action = "updateRaceHUD",
+                    cp = racerCheckpointIndex,
+                    totalCp = #Config.Checkpoints[currentTrack],
+                    lap = currentLap,
+                    totalLaps = totalLaps,
+                    -- position kan ev. lämnas tills du får den från server
+                })
                 end
             end
         })
@@ -333,12 +508,22 @@ RegisterNetEvent("speedway:prepareStart", function(data)
         radius = Config.FinishLine.radius,
         debug  = Config.debug,
         onEnter = function()
-            print(("[Speedway][DEBUG] finish_line onEnter; cpIndex=%d/%d"):format(
-                racerCheckpointIndex, #Config.Checkpoints[currentTrack]
+            print(("[Speedway][DEBUG] finish_line onEnter; cpIndex=%d/%d, lap=%d/%d"):format(
+                racerCheckpointIndex, #Config.Checkpoints[currentTrack], currentLap, totalLaps
             ))
-            if racerCheckpointIndex == #Config.Checkpoints[currentTrack] then
-                racerCheckpointIndex = 0
+
+            if racerCheckpointIndex == #Config.Checkpoints[currentTrack] then                
                 TriggerServerEvent("speedway:lapPassed", currentLobby, GetPlayerServerId(PlayerId()))
+                racerCheckpointIndex = 0
+                SendNUIMessage({
+                    action = "updateRaceHUD",
+                    cp = 0,
+                    totalCp = #Config.Checkpoints[currentTrack],
+                    lap = currentLap,
+                    totalLaps = totalLaps
+                })
+            else
+                print("[Speedway][DEBUG] Not all checkpoints passed yet.")
             end
         end
     })
@@ -354,9 +539,9 @@ RegisterNetEvent("speedway:prepareStart", function(data)
         repeat Wait(0) until IsPedInAnyVehicle(PlayerPedId(), false)
         FreezeEntityPosition(veh, true)
 
-        for i = 3, 1, -1 do ShowCountdownText(tostring(i), 1000) end
-        ShowCountdownText("GO", 1000)
-        FreezeEntityPosition(veh, false)
+        -- for i = 3, 1, -1 do ShowCountdownText(tostring(i), 1000) end
+        -- ShowCountdownText("GO", 1000)
+        -- FreezeEntityPosition(veh, false)
 
         SetFullFuel(veh)
 
@@ -380,6 +565,11 @@ RegisterNetEvent("speedway:prepareStart", function(data)
         end
         SetVehicleMod(veh, 49, math.random(1, 4), true)
 
+        SendNUIMessage({
+            action = "toggleRaceHUD",
+            show = true
+        })
+
         -- REPORT PROGRESS TO speedway-leaderboard instead of our own server
         CreateThread(function()
             while inRace do
@@ -402,7 +592,25 @@ RegisterNetEvent("speedway:prepareStart", function(data)
             end
         end)
     end)
+
+    TriggerServerEvent("speedway:clientReady", currentLobby)
+
 end)
+
+RegisterNetEvent("speedway:startCountdown", function()
+    local veh = GetVehiclePedIsIn(PlayerPedId(), false)
+    if veh and veh ~= 0 then
+        for i = 3, 1, -1 do ShowCountdownText(tostring(i), 1000) end
+        ShowCountdownText("GO", 1000)
+        FreezeEntityPosition(veh, false)
+
+        SendNUIMessage({
+            action = "toggleRaceHUD",
+            show = true
+        })
+    end
+end)
+
 
 --------------------------------------------------------------------------------
 -- 13) LAP & FINISH TOASTS
@@ -410,7 +618,11 @@ end)
 RegisterNetEvent("speedway:updateLap", function(cur, tot)
     currentLap = cur + 1
     totalLaps  = tot
-    SpeedwayNotify("🏁 Speedway", ("Lap %s/%s"):format(cur, tot), "inform", 3000)
+    SendNUIMessage({
+        action   = "updateRaceHUD",
+        lap = currentLap,
+        totalLaps = totalLaps,
+    })
 end)
 RegisterNetEvent("speedway:youFinished", function()
     SpeedwayNotify("🏁 Speedway", loc("you_finished"), "success", 5000)
@@ -437,6 +649,12 @@ RegisterNetEvent("speedway:finalRanking", function(data)
     else
         SpeedwayNotify("🏁 Speedway", loc("you_placed", data.position, #results, totalTime), "inform", 5000)
     end
+
+    SendNUIMessage({
+        action = "toggleRaceHUD",
+        show = false
+    })
+
     if data.lapTimes then
         local lapLines = { loc("lap_summary") }
         for i,t in ipairs(data.lapTimes) do
@@ -480,30 +698,64 @@ end)
 -- 17) RANK & POSITION HANDLERS
 --------------------------------------------------------------------------------
 RegisterNetEvent('speedway-leaderboard:client:updateRank', function(rank, total)
-    print(("[Speedway][HUD] got updateRank → %d/%d"):format(rank, total))
+    if Config.debug then
+        print(("[Speedway][HUD] got updateRank → %d/%d"):format(rank, total))
+    end
     myPosition  = rank
     totalRacers = total
+
+    -- ✅ Uppdatera Race-HUD med nya positionen
+    SendNUIMessage({
+        action   = "updateRaceHUD",
+        position = rank,
+        total    = total
+    })
 end)
 
--- 18) RANK & POSITION HUD (native DrawText, solid, bottom-center)
-CreateThread(function()
-    while true do
-        Wait(0)
-        if inRace then
-            -- draw lap counter
-            SetTextFont(4); SetTextScale(0.5,0.5); SetTextCentre(true)
-            SetTextColour(255,255,255,255); SetTextOutline()
-            BeginTextCommandDisplayText("STRING")
-            AddTextComponentSubstringPlayerName(("Lap %d / %d"):format(currentLap, totalLaps))
-            EndTextCommandDisplayText(0.5, 0.92)
+RegisterCommand("testtrack", function(_, args)
+    local track = args[1]
+    if not track or not Config.TrackProps[track] then
+        print("[Speedway][testtrack] Ange ett giltigt track-namn. Exempel: /testtrack sandy")
+        return
+    end
 
-            -- draw position (exactly as before)
-            SetTextFont(4); SetTextScale(0.5,0.5); SetTextCentre(true)
-            SetTextColour(255,255,255,255); SetTextOutline()
-            BeginTextCommandDisplayText("STRING")
-            AddTextComponentSubstringPlayerName(("Position %d / %d"):format(myPosition, totalRacers))
-            EndTextCommandDisplayText(0.5, 0.95)
+    print(("[Speedway][testtrack] Spawnar props för banan: %s"):format(track))
+
+    -- Spawn props
+    for _, pd in ipairs(Config.TrackProps[track]) do
+        RequestModel(pd.prop)
+        while not HasModelLoaded(pd.prop) do
+            Wait(0)
+        end
+
+        for _, c in ipairs(pd.cords) do
+            local obj = CreateObject(pd.prop, c.x, c.y, c.z - 1.0, false, false, false)
+            PlaceObjectOnGroundProperly(obj)
+            SetEntityHeading(obj, c.w or 0.0)
+            FreezeEntityPosition(obj, true)
+            table.insert(currentProps, obj)
         end
     end
+
+    print(("[Speedway][testtrack] Spawnade %d props."):format(#currentProps))
+end, false)
+
+RegisterNetEvent("speedway:client:destroyprops", function()
+    for _, obj in ipairs(currentProps) do
+        if DoesEntityExist(obj) then
+            DeleteObject(obj)
+        end
+    end
+    print(("[Speedway] Tog bort %d props."):format(#currentProps))
+    currentProps = {}
 end)
 
+RegisterCommand("cleartrack", function()
+    for _, obj in ipairs(currentProps) do
+        if DoesEntityExist(obj) then
+            DeleteObject(obj)
+        end
+    end
+    print(("[Speedway][cleartrack] Tog bort %d props."):format(#currentProps))
+    currentProps = {}
+end, false)

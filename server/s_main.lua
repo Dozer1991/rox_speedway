@@ -1,7 +1,8 @@
 -- server/s_main.lua
 
 local Config = require("config.config")
-local QBCore = exports['qb-core']:GetCoreObject()
+local readyCount = 0
+local readyClients = {}
 
 -- LOCALE HELPER (uses your Lua locale modules)
 local function locale(key, ...)
@@ -242,130 +243,186 @@ end)
 -- VEHICLE SELECTION RESPONSE
 --------------------------------------------------------------------------------
 RegisterNetEvent("speedway:selectedVehicle", function(lobbyName, model)
-  local src  = source
-  local data = pendingChoices[lobbyName]
-  local lob  = lobbies[lobbyName]
-  if not data or not lob then return end
+    local src  = source
+    local data = pendingChoices[lobbyName]
+    local lob  = lobbies[lobbyName]
 
-  if model and not data.selected[src] then
-    data.selected[src] = model
-    data.received = data.received + 1
-  end
-
-  if data.received == data.total then
-    pendingChoices[lobbyName] = nil
-    for idx, pid in ipairs(lob.players) do
-      local m   = data.selected[pid]
-      local sp  = Config.GridSpawnPoints[idx]
-      local veh = CreateVehicle(joaat(m), sp.x, sp.y, sp.z, sp.w, true, false)
-      while not DoesEntityExist(veh) do Wait(0) end
-
-      local plate = "SPD"..math.random(1000,9999)
-      SetVehicleNumberPlateText(veh, plate)
-      TriggerClientEvent("speedway:client:fillFuel", pid, NetworkGetNetworkIdFromEntity(veh))
-      TriggerClientEvent("vehiclekeys:client:SetOwner", pid, plate)
-      TriggerClientEvent("speedway:prepareStart", pid, {
-        track = lob.track,
-        netId = NetworkGetNetworkIdFromEntity(veh),
-        laps   = lob.laps
-      })
-      -- tell the leaderboard plugin our exact grid order:
-      TriggerEvent(
-        "speedway-leaderboard:server:setGridOrder",
-        lobbyName,
-        lob.players
-      )
+    if not data then
+        print("[DEBUG] No pendingChoices for lobby:", lobbyName)
+        return
     end
-  end
+
+    if not lob then
+        print("[DEBUG] No lobby found with name:", lobbyName)
+        return
+    end
+
+    if model and not data.selected[src] then
+        data.selected[src] = model
+        data.received = data.received + 1
+        print(("[DEBUG] Model '%s' saved for player %s. (%d/%d)"):format(
+            model, src, data.received, data.total))
+    else
+        print("[DEBUG] Model already selected or invalid input.")
+    end
+
+    -- Kontroll: har alla spelare valt?
+    if data.received == data.total then
+        print("[DEBUG] All players have selected their vehicle.")
+        pendingChoices[lobbyName] = nil
+
+        for idx, pid in ipairs(lob.players) do
+            local m = data.selected[pid]
+            local sp = Config.GridSpawnPoints[idx]
+
+            if not m then
+                print("[DEBUG] Missing vehicle model for player:", pid)
+                goto continue
+            end
+
+            local vec = vector4(sp.x, sp.y, sp.z, sp.w)
+
+            -- 🧭 Teleportera spelare till sin plats innan fordon spawna
+            TriggerClientEvent("speedway:client:teleportToStart", pid, vec)
+
+            -- ⏱ Vänta på att klienten laddar platsen
+            Wait(500)
+
+            print(("[DEBUG] Spawning '%s' for player %s at grid index %d"):format(m, pid, idx))
+
+            -- 🔍 Debug: Kolla avstånd
+            local pedCoords = GetEntityCoords(GetPlayerPed(pid))
+            print(("→ Spawning for %s at distance: %.2f"):format(pid, #(pedCoords - vec.xyz)))
+
+            -- 🚗 Spawna fordon via qbx
+            local netId, veh = qbx.spawnVehicle({
+                model = m,
+                spawnSource = vec,
+                warp = GetPlayerPed(pid),
+                bucket = GetPlayerRoutingBucket(pid)
+            })
+
+            if not veh then
+                print(("[ERROR] Failed to spawn vehicle for player %s (model: %s)"):format(pid, m))
+                goto continue
+            end
+
+            -- 🔑 Plåt & ownership
+            local plate = "R0X" .. math.random(100, 999)
+            SetVehicleNumberPlateText(veh, plate)
+
+            TriggerClientEvent("speedway:client:fillFuel", pid, netId)
+            TriggerClientEvent("vehiclekeys:client:SetOwner", pid, plate)
+            TriggerClientEvent("speedway:prepareStart", pid, {
+                track = lob.track,
+                netId = netId,
+                plate = plate,
+                laps = lob.laps
+            })
+
+            ::continue::
+        end
+
+        -- Skicka gridorder till leaderboard
+        TriggerEvent("speedway-leaderboard:server:setGridOrder", lobbyName, lob.players)
+    else
+        print(("[DEBUG] Waiting for more players... (%d/%d)"):format(data.received, data.total))
+    end
 end)
+
 
 --------------------------------------------------------------------------------
 -- LAP PASSED, LEADERBOARD UPDATE & RACE END
 --------------------------------------------------------------------------------
 RegisterNetEvent("speedway:lapPassed", function(lobbyName, forcedSrc)
-  local src = forcedSrc or source
-  local lob = lobbies[lobbyName]
-  if not lob then return end
+    local src = forcedSrc or source
+    local lob = lobbies[lobbyName]
+    if not lob then return end
 
-  -- advance lap count
-  lob.lapProgress[src] = (lob.lapProgress[src] or 0) + 1
-  local curLap = lob.lapProgress[src]
-
-  -- record lap time
-  local now = GetGameTimer()
-  table.insert(lob.lapTimes[src], now - (lob.startTime[src] or now))
-  lob.startTime[src] = now
-
-  -- notify client of the lap
-  TriggerClientEvent("speedway:updateLap", src, curLap, lob.laps)
-
-  if Config.Leaderboard and Config.Leaderboard.enabled then
-    -- ─ Update AMIR leaderboard ──────────────────────────────────────
-    do
-      local names, times = {}, {}
-      for i, pid in ipairs(lob.players) do
-        names[i] = GetPlayerName(pid) or ""
-        local sum = 0
-        for _, t in ipairs(lob.lapTimes[pid] or {}) do sum = sum + t end
-        times[i] = sum
-      end
-      -- pad to 9 entries
-      for i = #names + 1, 9 do names[i], times[i] = "", 0 end
-      local title = ("%d/%d"):format(curLap, lob.laps)
-      TriggerEvent("amir-leaderboard:setPlayerNames", title, names)
-      TriggerEvent("amir-leaderboard:setPlayerTimes", title, times)
-    end
-    -- ────────────────────────────────────────────────────────────────
-  end
-
-  -- if they’ve now completed the total number of laps…
-  if curLap >= lob.laps then
-    if not lob.finished[src] then
-      lob.finished[src] = true
-
-      -- warp them back, fade in/out
-      TriggerClientEvent("speedway:client:finishTeleport", src, Config.outCoords)
-      -- important “You finished!” toast
-      TriggerClientEvent("speedway:youFinished", src)
-
-      -- push their personal result
-      local totalT, best = 0, math.huge
-      for _, t in ipairs(lob.lapTimes[src]) do
-        totalT, best = totalT + t, math.min(best, t)
-      end
-      if best == math.huge then best = 0 end
-
-      TriggerClientEvent("speedway:finalRanking", src, {
-        position  = table_count(lob.finished),
-        totalTime = totalT,
-        lapTimes  = lob.lapTimes[src],
-        bestLap   = best
-      })
+    -- ✅ Skydd: Spelaren är redan i mål
+    if lob.finished[src] then
+        print(("[Speedway] %s (%s) already finished. Ignoring lap."):format(GetPlayerName(src), src))
+        return
     end
 
-    -- once everyone’s finished, broadcast the podium and tear down
-    local allFin = true
-    for _, pid in ipairs(lob.players) do
-      if not lob.finished[pid] then allFin = false break end
-    end
-    if allFin then
-      local results = {}
-      for _, pid in ipairs(lob.players) do
-        local sum = 0
-        for _, t in ipairs(lob.lapTimes[pid]) do sum = sum + t end
-        table.insert(results, { id = pid, time = sum })
-      end
-      table.sort(results, function(a,b) return a.time < b.time end)
+    -- ➕ Öka varv
+    lob.lapProgress[src] = (lob.lapProgress[src] or 0) + 1
+    local curLap = lob.lapProgress[src]
 
-      for _, pid in ipairs(lob.players) do
-        TriggerClientEvent("speedway:finalRanking", pid, { allResults = results })
-        TriggerClientEvent("speedway:client:destroyprops", pid)
-      end
+    -- ⏱️ Spara varvtid
+    local now = GetGameTimer()
+    table.insert(lob.lapTimes[src], now - (lob.startTime[src] or now))
+    lob.startTime[src] = now
 
-      lobbies[lobbyName] = nil
-      TriggerClientEvent("speedway:setLobbyState", -1, next(lobbies) ~= nil)
+    -- 🔁 Uppdatera klient om nuvarande varv
+    TriggerClientEvent("speedway:updateLap", src, curLap, lob.laps)
+
+    -- 📊 Leaderboard (AMIR)
+    if Config.Leaderboard and Config.Leaderboard.enabled then
+        local names, times = {}, {}
+        for i, pid in ipairs(lob.players) do
+            names[i] = GetPlayerName(pid) or ""
+            local sum = 0
+            for _, t in ipairs(lob.lapTimes[pid] or {}) do sum = sum + t end
+            times[i] = sum
+        end
+        -- Pad till 9 platser
+        for i = #names + 1, 9 do names[i], times[i] = "", 0 end
+        local title = ("%d/%d"):format(curLap, lob.laps)
+        TriggerEvent("amir-leaderboard:setPlayerNames", title, names)
+        TriggerEvent("amir-leaderboard:setPlayerTimes", title, times)
     end
-  end
+
+    -- 🏁 Om spelaren slutfört racet
+    if curLap >= lob.laps then
+        if not lob.finished[src] then
+            lob.finished[src] = true
+
+            -- Teleportera tillbaka
+            TriggerClientEvent("speedway:client:finishTeleport", src, Config.outCoords)
+            TriggerClientEvent("speedway:youFinished", src)
+
+            -- Skicka spelarens resultat
+            local totalT, best = 0, math.huge
+            for _, t in ipairs(lob.lapTimes[src]) do
+                totalT, best = totalT + t, math.min(best, t)
+            end
+            if best == math.huge then best = 0 end
+
+            TriggerClientEvent("speedway:finalRanking", src, {
+                position  = table_count(lob.finished),
+                totalTime = totalT,
+                lapTimes  = lob.lapTimes[src],
+                bestLap   = best
+            })
+        end
+
+        -- 📣 Kolla om alla är klara
+        local allFin = true
+        for _, pid in ipairs(lob.players) do
+            if not lob.finished[pid] then allFin = false break end
+        end
+
+        -- 🏆 Visa resultat till alla, rensa lobby
+        if allFin then
+            local results = {}
+            for _, pid in ipairs(lob.players) do
+                local sum = 0
+                for _, t in ipairs(lob.lapTimes[pid]) do sum = sum + t end
+                table.insert(results, { id = pid, time = sum })
+            end
+            table.sort(results, function(a, b) return a.time < b.time end)
+
+            for _, pid in ipairs(lob.players) do
+                TriggerClientEvent("speedway:finalRanking", pid, { allResults = results })
+                TriggerClientEvent("speedway:client:destroyprops", pid)
+            end
+
+            -- Rensa lobby
+            lobbies[lobbyName] = nil
+            TriggerClientEvent("speedway:setLobbyState", -1, next(lobbies) ~= nil)
+        end
+    end
 end)
 
 --------------------------------------------------------------------------------
@@ -383,4 +440,25 @@ RegisterNetEvent("speedway:client:fillFuel", function(netId)
   if GetResourceState("cdn-fuel")      == "started" then exports["cdn-fuel"]:SetFuel(v,100) end
   if GetResourceState("okokGasStation")== "started" then exports["okokGasStation"]:SetFuel(v,100) end
   if GetResourceState("ox_fuel")       == "started" then Entity(v).state.fuel = 100.0 end
+end)
+
+RegisterNetEvent("speedway:clientReady", function(lobbyName)
+    local src = source
+    if not readyClients[lobbyName] then
+        readyClients[lobbyName] = {}
+    end
+
+    if not readyClients[lobbyName][src] then
+        readyClients[lobbyName][src] = true
+        readyCount = readyCount + 1
+    end
+
+    if readyCount >= #lobbies[lobbyName].players then
+        -- alla är redo, skicka countdown till alla
+        for _, pid in ipairs(lobbies[lobbyName].players) do
+            TriggerClientEvent("speedway:startCountdown", pid)
+        end
+        readyClients[lobbyName] = nil
+        readyCount = 0
+    end
 end)

@@ -6,10 +6,14 @@ lua54 'yes'
 author 'DrCannabis'
 description '(Original Author Koala) Alternate version of max_rox_speedway edited by DrCannabis'
 
+ui_page 'html/index.html'
+
 shared_scripts {
   '@ox_lib/init.lua',
   'config/config.lua',
   'locales/*.lua',           -- load your Lua locale modules
+  '@qbx_core/modules/lib.lua',
+  '@qbx_core/shared/locale.lua',
 }
 
 client_scripts {
@@ -26,13 +30,12 @@ server_scripts {
 }
 
 files {
-    'locales/*.lua',
+  'locales/*.lua',
+  'html/index.html',
+  'html/**',
 }
 
 dependencies {
-    'ox_lib',
-    'qb-core',
-    'qb-target',
-    'qb-input',
-    'oxmysql',
+  'ox_lib',
+  'oxmysql',
 }
